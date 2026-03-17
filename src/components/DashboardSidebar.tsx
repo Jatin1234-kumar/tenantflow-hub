@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap,
+  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -12,6 +12,7 @@ import {
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Projects", url: "/dashboard/projects", icon: FolderKanban },
+  { title: "Tasks", url: "/dashboard/tasks", icon: CheckSquare },
   { title: "Team", url: "/dashboard/team", icon: Users },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
@@ -32,7 +33,6 @@ export function DashboardSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        {/* Logo */}
         <div className="flex items-center gap-2 px-4 py-4">
           <div className="h-8 w-8 shrink-0 rounded-lg bg-gradient-hero flex items-center justify-center">
             <Zap className="h-4 w-4 text-sidebar-primary-foreground" />
