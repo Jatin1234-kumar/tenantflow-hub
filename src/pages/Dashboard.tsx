@@ -1,10 +1,11 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SearchCommand } from "@/components/SearchCommand";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
-import { useNavigate } from "react-router-dom";
+import { Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const navigate = useNavigate();
