@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { } = useAuth();
   const navigate = useNavigate();
 
   return (

@@ -147,7 +147,7 @@ export default function DashboardTasks() {
             <DialogHeader>
               <DialogTitle className="font-display">{editTask ? "Edit Task" : "Create Task"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); editTask ? updateTask.mutate() : createTask.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); if (editTask) { updateTask.mutate(); } else { createTask.mutate(); } }} className="space-y-4">
               <div>
                 <Label>Title</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" required className="mt-1.5" />
