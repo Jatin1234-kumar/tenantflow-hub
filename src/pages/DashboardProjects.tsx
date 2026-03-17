@@ -7,16 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FolderKanban, MoreVertical, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, FolderKanban, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 export default function DashboardProjects() {
   const { tenant, user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editProject, setEditProject] = useState<any>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [status, setStatus] = useState("active");
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects", tenant?.id],
@@ -32,16 +36,28 @@ export default function DashboardProjects() {
   const createProject = useMutation({
     mutationFn: async () => {
       if (!tenant || !user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("projects").insert({ name, description: desc || null, tenant_id: tenant.id, created_by: user.id });
+      const { error } = await supabase.from("projects").insert({ name, description: desc || null, tenant_id: tenant.id, created_by: user.id, status });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["project-count"] });
-      setOpen(false);
-      setName("");
-      setDesc("");
+      resetForm();
       toast.success("Project created!");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const updateProject = useMutation({
+    mutationFn: async () => {
+      if (!editProject) return;
+      const { error } = await supabase.from("projects").update({ name, description: desc || null, status }).eq("id", editProject.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      resetForm();
+      toast.success("Project updated!");
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -59,6 +75,31 @@ export default function DashboardProjects() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const resetForm = () => {
+    setOpen(false);
+    setEditProject(null);
+    setName("");
+    setDesc("");
+    setStatus("active");
+  };
+
+  const openEdit = (project: any) => {
+    setEditProject(project);
+    setName(project.name);
+    setDesc(project.description || "");
+    setStatus(project.status);
+    setOpen(true);
+  };
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case "active": return "default" as const;
+      case "completed": return "secondary" as const;
+      case "archived": return "outline" as const;
+      default: return "outline" as const;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -66,15 +107,15 @@ export default function DashboardProjects() {
           <h1 className="font-display text-2xl font-bold text-foreground">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage your workspace projects</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
           <DialogTrigger asChild>
             <Button variant="hero" size="sm"><Plus className="h-4 w-4 mr-1" /> New Project</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="font-display">Create Project</DialogTitle>
+              <DialogTitle className="font-display">{editProject ? "Edit Project" : "Create Project"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); createProject.mutate(); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); editProject ? updateProject.mutate() : createProject.mutate(); }} className="space-y-4">
               <div>
                 <Label htmlFor="projectName">Project Name</Label>
                 <Input id="projectName" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Project" required className="mt-1.5" />
@@ -83,8 +124,19 @@ export default function DashboardProjects() {
                 <Label htmlFor="projectDesc">Description (optional)</Label>
                 <Input id="projectDesc" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Brief description..." className="mt-1.5" />
               </div>
-              <Button variant="hero" className="w-full" disabled={createProject.isPending}>
-                {createProject.isPending ? "Creating..." : "Create Project"}
+              <div>
+                <Label>Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="hero" className="w-full" disabled={createProject.isPending || updateProject.isPending}>
+                {editProject ? (updateProject.isPending ? "Saving..." : "Save Changes") : (createProject.isPending ? "Creating..." : "Create Project")}
               </Button>
             </form>
           </DialogContent>
@@ -93,9 +145,7 @@ export default function DashboardProjects() {
 
       {isLoading ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse"><CardContent className="p-6 h-32" /></Card>
-          ))}
+          {[1, 2, 3].map((i) => <Card key={i} className="animate-pulse"><CardContent className="p-6 h-32" /></Card>)}
         </div>
       ) : projects?.length === 0 ? (
         <Card>
@@ -120,7 +170,7 @@ export default function DashboardProjects() {
                     </div>
                     <div>
                       <h3 className="font-medium text-foreground">{project.name}</h3>
-                      <p className="text-xs text-muted-foreground">{project.status}</p>
+                      <Badge variant={statusColor(project.status)} className="mt-1 capitalize text-xs">{project.status}</Badge>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -128,6 +178,9 @@ export default function DashboardProjects() {
                       <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(project)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
                       <DropdownMenuItem className="text-destructive" onClick={() => deleteProject.mutate(project.id)}>
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
