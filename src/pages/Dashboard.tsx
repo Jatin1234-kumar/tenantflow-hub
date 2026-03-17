@@ -4,13 +4,9 @@ import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SearchCommand } from "@/components/SearchCommand";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
-import { useAuth } from "@/contexts/AuthContext";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
-  const { } = useAuth();
   const navigate = useNavigate();
 
   return (
