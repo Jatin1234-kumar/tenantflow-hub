@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, CheckSquare, MoreVertical, Trash2, Pencil, Circle, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Plus, CheckSquare, MoreVertical, Trash2, Pencil, Circle, CheckCircle, Clock, AlertCircle, CalendarDays, User } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { format } from "date-fns";
 
 const statusConfig: Record<string, { icon: typeof Circle; color: string; label: string }> = {
   todo: { icon: Circle, color: "text-muted-foreground", label: "To Do" },
@@ -37,6 +39,8 @@ export default function DashboardTasks() {
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
   const { data: projects } = useQuery({
@@ -44,6 +48,16 @@ export default function DashboardTasks() {
     queryFn: async () => {
       if (!tenant) return [];
       const { data } = await supabase.from("projects").select("id, name").eq("tenant_id", tenant.id);
+      return data || [];
+    },
+    enabled: !!tenant,
+  });
+
+  const { data: members } = useQuery({
+    queryKey: ["team-members-list", tenant?.id],
+    queryFn: async () => {
+      if (!tenant) return [];
+      const { data } = await supabase.from("profiles").select("user_id, full_name").eq("tenant_id", tenant.id);
       return data || [];
     },
     enabled: !!tenant,
@@ -69,6 +83,8 @@ export default function DashboardTasks() {
       const { error } = await supabase.from("tasks").insert({
         title, description: desc || null, status, priority,
         project_id: projectId, tenant_id: tenant.id, created_by: user.id,
+        assigned_to: assignedTo || null,
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
       });
       if (error) throw error;
     },
@@ -83,7 +99,11 @@ export default function DashboardTasks() {
   const updateTask = useMutation({
     mutationFn: async () => {
       if (!editTask) return;
-      const { error } = await supabase.from("tasks").update({ title, description: desc || null, status, priority, project_id: projectId }).eq("id", editTask.id);
+      const { error } = await supabase.from("tasks").update({
+        title, description: desc || null, status, priority, project_id: projectId,
+        assigned_to: assignedTo || null,
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
+      }).eq("id", editTask.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -116,14 +136,27 @@ export default function DashboardTasks() {
 
   const resetForm = () => {
     setOpen(false); setEditTask(null);
-    setTitle(""); setDesc(""); setStatus("todo"); setPriority("medium"); setProjectId("");
+    setTitle(""); setDesc(""); setStatus("todo"); setPriority("medium");
+    setProjectId(""); setAssignedTo(""); setDueDate("");
   };
 
   const openEdit = (task: any) => {
     setEditTask(task);
     setTitle(task.title); setDesc(task.description || "");
     setStatus(task.status); setPriority(task.priority); setProjectId(task.project_id);
+    setAssignedTo(task.assigned_to || "");
+    setDueDate(task.due_date ? task.due_date.split("T")[0] : "");
     setOpen(true);
+  };
+
+  const getAssigneeName = (userId: string | null) => {
+    if (!userId) return null;
+    return members?.find((m) => m.user_id === userId)?.full_name || "Unknown";
+  };
+
+  const isOverdue = (dueDate: string | null, status: string) => {
+    if (!dueDate || status === "done") return false;
+    return new Date(dueDate) < new Date();
   };
 
   const filtered = filterStatus === "all" ? tasks : tasks?.filter((t) => t.status === filterStatus);
@@ -143,11 +176,11 @@ export default function DashboardTasks() {
               <Plus className="h-4 w-4 mr-1" /> New Task
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-display">{editTask ? "Edit Task" : "Create Task"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); if (editTask) { updateTask.mutate(); } else { createTask.mutate(); } }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); editTask ? updateTask.mutate() : createTask.mutate(); }} className="space-y-4">
               <div>
                 <Label>Title</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" required className="mt-1.5" />
@@ -178,6 +211,22 @@ export default function DashboardTasks() {
                   </Select>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Assign To</Label>
+                  <Select value={assignedTo} onValueChange={setAssignedTo}>
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Unassigned</SelectItem>
+                      {members?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Due Date</Label>
+                  <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1.5" />
+                </div>
+              </div>
               <div>
                 <Label>Status</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -198,7 +247,6 @@ export default function DashboardTasks() {
         </Dialog>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         {["all", "todo", "in_progress", "done", "blocked"].map((s) => (
           <Button key={s} variant={filterStatus === s ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(s)} className="capitalize">
@@ -232,8 +280,10 @@ export default function DashboardTasks() {
           {filtered.map((task) => {
             const sc = statusConfig[task.status] || statusConfig.todo;
             const StatusIcon = sc.icon;
+            const assignee = getAssigneeName(task.assigned_to);
+            const overdue = isOverdue(task.due_date, task.status);
             return (
-              <Card key={task.id} className="hover:shadow-sm transition-shadow">
+              <Card key={task.id} className={`hover:shadow-sm transition-shadow ${overdue ? "border-destructive/30" : ""}`}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <button
                     onClick={() => quickStatus.mutate({ id: task.id, newStatus: task.status === "done" ? "todo" : "done" })}
@@ -243,9 +293,20 @@ export default function DashboardTasks() {
                   </button>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium text-foreground ${task.status === "done" ? "line-through opacity-60" : ""}`}>{task.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground">{(task as any).projects?.name}</span>
                       <Badge variant={priorityVariant[task.priority] || "outline"} className="text-[10px] h-4 px-1.5 capitalize">{task.priority}</Badge>
+                      {assignee && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <User className="h-3 w-3" /> {assignee}
+                        </span>
+                      )}
+                      {task.due_date && (
+                        <span className={`flex items-center gap-1 text-xs ${overdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          <CalendarDays className="h-3 w-3" /> {format(new Date(task.due_date), "MMM d")}
+                          {overdue && " (overdue)"}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <DropdownMenu>

@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, User } from "lucide-react";
 
 export function UserProfileDropdown() {
   const { profile, signOut } = useAuth();
@@ -28,6 +28,9 @@ export function UserProfileDropdown() {
           <p className="text-xs text-muted-foreground truncate">Admin</p>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/dashboard/profile")} className="gap-2">
+          <User className="h-4 w-4" /> Profile
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/dashboard/settings")} className="gap-2">
           <Settings className="h-4 w-4" /> Settings
         </DropdownMenuItem>

@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare,
+  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare, Activity,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -16,6 +16,7 @@ const mainItems = [
   { title: "Team", url: "/dashboard/team", icon: Users },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
+  { title: "Activity Log", url: "/dashboard/activity", icon: Activity },
 ];
 
 const settingsItems = [

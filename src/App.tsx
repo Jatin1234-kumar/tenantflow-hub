@@ -21,6 +21,8 @@ import DashboardAnalytics from "./pages/DashboardAnalytics";
 import DashboardNotifications from "./pages/DashboardNotifications";
 import DashboardBilling from "./pages/DashboardBilling";
 import DashboardSettings from "./pages/DashboardSettings";
+import DashboardActivityLog from "./pages/DashboardActivityLog";
+import DashboardProfile from "./pages/DashboardProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +50,8 @@ const App = () => (
                 <Route path="notifications" element={<DashboardNotifications />} />
                 <Route path="billing" element={<DashboardBilling />} />
                 <Route path="settings" element={<DashboardSettings />} />
+                <Route path="activity" element={<DashboardActivityLog />} />
+                <Route path="profile" element={<DashboardProfile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
