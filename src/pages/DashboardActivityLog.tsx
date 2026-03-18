@@ -83,7 +83,7 @@ export default function DashboardActivityLog() {
           <SelectContent>
             <SelectItem value="all">All Actions</SelectItem>
             {actionTypes.map((a) => (
-              <SelectItem key={a} value={a} className="capitalize">{a.replace(/_/g, " ")}</SelectItem>
+              <SelectItem key={String(a)} value={String(a)} className="capitalize">{String(a).replace(/_/g, " ")}</SelectItem>
             ))}
           </SelectContent>
         </Select>
