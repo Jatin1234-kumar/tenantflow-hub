@@ -21,6 +21,8 @@ import DashboardAnalytics from "./pages/DashboardAnalytics";
 import DashboardNotifications from "./pages/DashboardNotifications";
 import DashboardBilling from "./pages/DashboardBilling";
 import DashboardSettings from "./pages/DashboardSettings";
+import DashboardActivityLog from "./pages/DashboardActivityLog";
+import DashboardProfile from "./pages/DashboardProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
