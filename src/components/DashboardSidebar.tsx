@@ -16,6 +16,7 @@ const mainItems = [
   { title: "Team", url: "/dashboard/team", icon: Users },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
+  { title: "Activity Log", url: "/dashboard/activity", icon: Activity },
 ];
 
 const settingsItems = [

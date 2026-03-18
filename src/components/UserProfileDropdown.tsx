@@ -28,6 +28,9 @@ export function UserProfileDropdown() {
           <p className="text-xs text-muted-foreground truncate">Admin</p>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/dashboard/profile")} className="gap-2">
+          <User className="h-4 w-4" /> Profile
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/dashboard/settings")} className="gap-2">
           <Settings className="h-4 w-4" /> Settings
         </DropdownMenuItem>

@@ -50,6 +50,8 @@ const App = () => (
                 <Route path="notifications" element={<DashboardNotifications />} />
                 <Route path="billing" element={<DashboardBilling />} />
                 <Route path="settings" element={<DashboardSettings />} />
+                <Route path="activity" element={<DashboardActivityLog />} />
+                <Route path="profile" element={<DashboardProfile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
