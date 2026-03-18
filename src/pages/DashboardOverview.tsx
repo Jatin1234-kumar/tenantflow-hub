@@ -1,22 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, FolderKanban, Activity, HardDrive } from "lucide-react";
+import { Users, FolderKanban, CheckSquare, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const chartData = [
-  { name: "Mon", activity: 24 }, { name: "Tue", activity: 38 },
-  { name: "Wed", activity: 45 }, { name: "Thu", activity: 32 },
-  { name: "Fri", activity: 52 }, { name: "Sat", activity: 18 },
-  { name: "Sun", activity: 12 },
-];
-
-const growthData = [
-  { month: "Jan", users: 5 }, { month: "Feb", users: 8 },
-  { month: "Mar", users: 12 }, { month: "Apr", users: 15 },
-  { month: "May", users: 22 }, { month: "Jun", users: 28 },
-];
+const COLORS = ["hsl(221, 83%, 53%)", "hsl(262, 83%, 58%)", "hsl(142, 76%, 36%)", "hsl(38, 92%, 50%)", "hsl(0, 84%, 60%)"];
 
 export default function DashboardOverview() {
   const { tenant } = useAuth();
@@ -41,6 +31,61 @@ export default function DashboardOverview() {
     enabled: !!tenant,
   });
 
+  const { data: taskStats } = useQuery({
+    queryKey: ["task-stats", tenant?.id],
+    queryFn: async () => {
+      if (!tenant) return { total: 0, done: 0, byStatus: [] as { name: string; value: number }[] };
+      const { data } = await supabase.from("tasks").select("status").eq("tenant_id", tenant.id);
+      const counts: Record<string, number> = {};
+      data?.forEach((t) => { counts[t.status] = (counts[t.status] || 0) + 1; });
+      const total = data?.length || 0;
+      const done = counts["done"] || 0;
+      return {
+        total,
+        done,
+        byStatus: Object.entries(counts).map(([name, value]) => ({ name: name.replace("_", " "), value })),
+      };
+    },
+    enabled: !!tenant,
+  });
+
+  const { data: unreadNotifs } = useQuery({
+    queryKey: ["unread-notifs", tenant?.id],
+    queryFn: async () => {
+      if (!tenant) return 0;
+      const { count } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("tenant_id", tenant.id).eq("read", false);
+      return count || 0;
+    },
+    enabled: !!tenant,
+  });
+
+  const { data: activityByDay } = useQuery({
+    queryKey: ["overview-activity-daily", tenant?.id],
+    queryFn: async () => {
+      if (!tenant) return [];
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      const { data } = await supabase
+        .from("activity_logs")
+        .select("created_at")
+        .eq("tenant_id", tenant.id)
+        .gte("created_at", sevenDaysAgo.toISOString());
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const counts: Record<string, number> = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        counts[days[d.getDay()]] = 0;
+      }
+      data?.forEach((a) => {
+        const day = days[new Date(a.created_at).getDay()];
+        counts[day] = (counts[day] || 0) + 1;
+      });
+      return Object.entries(counts).map(([day, activity]) => ({ day, activity }));
+    },
+    enabled: !!tenant,
+  });
+
   const { data: recentActivity } = useQuery({
     queryKey: ["recent-activity", tenant?.id],
     queryFn: async () => {
@@ -57,17 +102,19 @@ export default function DashboardOverview() {
   });
 
   const stats = [
-    { title: "Team Members", value: teamCount ?? 0, icon: Users, change: "+2 this month", color: "text-primary" },
-    { title: "Projects", value: projectCount ?? 0, icon: FolderKanban, change: "Active", color: "text-accent" },
-    { title: "Active Sessions", value: 3, icon: Activity, change: "Real-time", color: "text-success" },
-    { title: "Storage Used", value: "128MB", icon: HardDrive, change: "of 5GB", color: "text-warning" },
+    { title: "Team Members", value: teamCount ?? 0, icon: Users, sub: `of ${tenant?.max_users || 5} max`, color: "text-primary" },
+    { title: "Projects", value: projectCount ?? 0, icon: FolderKanban, sub: "Active", color: "text-accent" },
+    { title: "Tasks", value: `${taskStats?.done ?? 0}/${taskStats?.total ?? 0}`, icon: CheckSquare, sub: "Completed", color: "text-success" },
+    { title: "Notifications", value: unreadNotifs ?? 0, icon: Bell, sub: "Unread", color: "text-warning" },
   ];
 
   const formatAction = (action: string) => {
     const map: Record<string, string> = {
-      created_project: "Created new project",
-      sent_invitation: "Invited team member",
+      created_project: "Created project",
+      sent_invitation: "Invited member",
+      created_task: "Created task",
       updated_settings: "Updated settings",
+      removed_member: "Removed member",
     };
     return map[action] || action.replace(/_/g, " ");
   };
@@ -97,7 +144,7 @@ export default function DashboardOverview() {
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{stat.title}</p>
                   <p className="text-2xl font-display font-bold text-foreground mt-1">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
                 </div>
                 <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
                   <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -113,28 +160,32 @@ export default function DashboardOverview() {
           <CardHeader><CardTitle className="font-display text-base">Weekly Activity</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={chartData}>
+              <BarChart data={activityByDay || []}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="name" tick={{ fill: 'hsl(220, 9%, 46%)' }} />
-                <YAxis tick={{ fill: 'hsl(220, 9%, 46%)' }} />
-                <Tooltip contentStyle={{ background: 'hsl(0, 0%, 100%)', border: '1px solid hsl(220, 13%, 91%)', borderRadius: '8px' }} />
+                <XAxis dataKey="day" tick={{ fill: 'hsl(220, 9%, 46%)' }} />
+                <YAxis tick={{ fill: 'hsl(220, 9%, 46%)' }} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
                 <Bar dataKey="activity" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader><CardTitle className="font-display text-base">User Growth</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={growthData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="month" tick={{ fill: 'hsl(220, 9%, 46%)' }} />
-                <YAxis tick={{ fill: 'hsl(220, 9%, 46%)' }} />
-                <Tooltip contentStyle={{ background: 'hsl(0, 0%, 100%)', border: '1px solid hsl(220, 13%, 91%)', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="users" stroke="hsl(262, 83%, 58%)" strokeWidth={2} dot={{ fill: 'hsl(262, 83%, 58%)' }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardHeader><CardTitle className="font-display text-base">Task Distribution</CardTitle></CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {taskStats?.byStatus?.length ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={taskStats.byStatus} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    {taskStats.byStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-12">No tasks yet. Create a task to see distribution.</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -150,7 +201,7 @@ export default function DashboardOverview() {
                   <div className="flex-1">
                     <p className="text-sm text-foreground">{formatAction(item.action)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {(item.metadata as any)?.name || (item.metadata as any)?.email || ""} · {timeAgo(item.created_at)}
+                      {(item.metadata as any)?.name || (item.metadata as any)?.email || (item.metadata as any)?.title || ""} · {timeAgo(item.created_at)}
                     </p>
                   </div>
                 </div>
