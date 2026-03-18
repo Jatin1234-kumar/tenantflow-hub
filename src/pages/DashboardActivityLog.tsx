@@ -109,7 +109,7 @@ export default function DashboardActivityLog() {
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-1">
                 {filtered.map((log) => {
-                  const config = actionConfig[log.action] || { icon: Activity, label: log.action.replace(/_/g, " "), color: "bg-muted text-muted-foreground" };
+                  const config = actionConfig[log.action] || { icon: Activity, label: String(log.action).replace(/_/g, " "), color: "bg-muted text-muted-foreground" };
                   const Icon = config.icon;
                   const meta = log.metadata as any;
                   return (
