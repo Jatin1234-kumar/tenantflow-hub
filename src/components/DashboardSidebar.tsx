@@ -28,7 +28,7 @@ export function DashboardSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut, profile, tenant } = useAuth();
+  const { signOut, profile, tenant, role } = useAuth();
   const isActive = (path: string) => location.pathname === path;
 
   return (
