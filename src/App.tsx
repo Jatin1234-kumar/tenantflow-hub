@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { SuperAdminRoute } from "@/components/SuperAdminRoute";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -23,6 +24,12 @@ import DashboardBilling from "./pages/DashboardBilling";
 import DashboardSettings from "./pages/DashboardSettings";
 import DashboardActivityLog from "./pages/DashboardActivityLog";
 import DashboardProfile from "./pages/DashboardProfile";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import SuperAdminOverview from "./pages/SuperAdminOverview";
+import SuperAdminTenants from "./pages/SuperAdminTenants";
+import SuperAdminUsers from "./pages/SuperAdminUsers";
+import SuperAdminActivity from "./pages/SuperAdminActivity";
+import SuperAdminSettings from "./pages/SuperAdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +59,13 @@ const App = () => (
                 <Route path="settings" element={<DashboardSettings />} />
                 <Route path="activity" element={<DashboardActivityLog />} />
                 <Route path="profile" element={<DashboardProfile />} />
+              </Route>
+              <Route path="/admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>}>
+                <Route index element={<SuperAdminOverview />} />
+                <Route path="tenants" element={<SuperAdminTenants />} />
+                <Route path="users" element={<SuperAdminUsers />} />
+                <Route path="activity" element={<SuperAdminActivity />} />
+                <Route path="settings" element={<SuperAdminSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

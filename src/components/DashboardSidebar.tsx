@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare, Activity,
+  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare, Activity, Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -28,7 +28,7 @@ export function DashboardSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut, profile, tenant } = useAuth();
+  const { signOut, profile, tenant, role } = useAuth();
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -81,6 +81,24 @@ export function DashboardSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {role?.role === "super_admin" && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/admin" className="hover:bg-sidebar-accent/50 text-destructive" activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium">
+                      <Shield className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>Super Admin</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
