@@ -3,16 +3,42 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, CreditCard } from "lucide-react";
+import { toast } from "sonner";
 
 const plans = [
-  { name: "Free", price: "$0", features: ["5 members", "3 projects", "Basic analytics"] },
-  { name: "Pro", price: "$29/mo", features: ["50 members", "Unlimited projects", "Advanced analytics", "Priority support"] },
-  { name: "Enterprise", price: "Custom", features: ["Unlimited", "Dedicated support", "SSO", "SLA"] },
+  {
+    name: "Free",
+    key: "free",
+    price: "$0",
+    features: ["5 members", "3 projects", "Basic analytics"],
+  },
+  {
+    name: "Pro",
+    key: "pro",
+    price: "$29/mo",
+    features: ["50 members", "Unlimited projects", "Advanced analytics", "Priority support"],
+    paymentLink: import.meta.env.VITE_STRIPE_PRO_PAYMENT_LINK,
+  },
+  {
+    name: "Enterprise",
+    key: "enterprise",
+    price: "Custom",
+    features: ["Unlimited", "Dedicated support", "SSO", "SLA"],
+    paymentLink: import.meta.env.VITE_STRIPE_ENTERPRISE_PAYMENT_LINK,
+  },
 ];
 
 export default function DashboardBilling() {
   const { tenant } = useAuth();
   const currentPlan = tenant?.plan || "free";
+
+  const handleUpgrade = (planName: string, paymentLink?: string) => {
+    if (!paymentLink) {
+      toast.error(`${planName} plan Stripe payment link is missing`);
+      return;
+    }
+    window.location.href = paymentLink;
+  };
 
   return (
     <div className="space-y-6">
@@ -39,7 +65,7 @@ export default function DashboardBilling() {
 
       <div className="grid md:grid-cols-3 gap-4">
         {plans.map((plan) => {
-          const isCurrent = plan.name.toLowerCase() === currentPlan;
+          const isCurrent = plan.key === currentPlan;
           return (
             <Card key={plan.name} className={isCurrent ? "border-primary ring-1 ring-primary/20" : ""}>
               <CardContent className="p-6">
@@ -56,6 +82,7 @@ export default function DashboardBilling() {
                   variant={isCurrent ? "secondary" : "hero"}
                   className="w-full mt-6"
                   disabled={isCurrent}
+                  onClick={() => handleUpgrade(plan.name, plan.paymentLink)}
                 >
                   {isCurrent ? "Current Plan" : "Upgrade"}
                 </Button>
