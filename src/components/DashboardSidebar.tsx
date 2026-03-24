@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare, Activity, Shield, Lock,
+  LayoutDashboard, FolderKanban, Users, BarChart3, Bell, CreditCard, Settings, LogOut, Zap, CheckSquare, Activity, Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";

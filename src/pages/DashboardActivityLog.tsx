@@ -7,11 +7,11 @@ import { usePagination } from "@/hooks/usePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Activity, FolderKanban, UserPlus, CheckSquare, Settings, Search, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/EmptyState";
 import { PaginationControls } from "@/components/PaginationControls";
 import { exportToCsv } from "@/lib/exportCsv";
@@ -78,9 +78,6 @@ export default function DashboardActivityLog() {
     ]);
     toast.success("Activity logs exported!");
   };
-
-  // Need toast import
-  const { toast } = await import("sonner");
 
   return (
     <div className="space-y-6">
