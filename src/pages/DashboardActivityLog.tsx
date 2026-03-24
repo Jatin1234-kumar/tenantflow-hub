@@ -2,14 +2,19 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePermissions } from "@/hooks/usePermissions";
+import { usePagination } from "@/hooks/usePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Activity, FolderKanban, UserPlus, CheckSquare, Settings, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, FolderKanban, UserPlus, CheckSquare, Settings, Search, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
+import { PaginationControls } from "@/components/PaginationControls";
+import { exportToCsv } from "@/lib/exportCsv";
 
 const actionConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   created_project: { icon: FolderKanban, label: "Created project", color: "bg-primary/10 text-primary" },
@@ -21,19 +26,15 @@ const actionConfig: Record<string, { icon: typeof Activity; label: string; color
 
 export default function DashboardActivityLog() {
   const { tenant } = useAuth();
+  const permissions = usePermissions();
   const [filterAction, setFilterAction] = useState("all");
   const [search, setSearch] = useState("");
 
-  const { data: logs, isLoading } = useQuery({
+  const { data: logs = [], isLoading } = useQuery({
     queryKey: ["activity-logs", tenant?.id],
     queryFn: async () => {
       if (!tenant) return [];
-      const { data } = await supabase
-        .from("activity_logs")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const { data } = await supabase.from("activity_logs").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(500);
       return data || [];
     },
     enabled: !!tenant,
@@ -49,12 +50,9 @@ export default function DashboardActivityLog() {
     enabled: !!tenant,
   });
 
-  const getMemberName = (userId: string | null) => {
-    if (!userId) return "System";
-    return members?.find((m) => m.user_id === userId)?.full_name || "Unknown";
-  };
+  const getMemberName = (userId: string | null) => !userId ? "System" : members?.find((m) => m.user_id === userId)?.full_name || "Unknown";
 
-  const filtered = logs?.filter((log) => {
+  const filtered = logs.filter((log) => {
     if (filterAction !== "all" && log.action !== filterAction) return false;
     if (search) {
       const meta = JSON.stringify(log.metadata || {}).toLowerCase();
@@ -64,13 +62,33 @@ export default function DashboardActivityLog() {
     return true;
   });
 
-  const actionTypes = [...new Set(logs?.map((l) => l.action) || [])];
+  const pagination = usePagination(filtered, { pageSize: 20 });
+  const actionTypes = [...new Set(logs.map((l) => l.action))];
+
+  const handleExport = () => {
+    exportToCsv("activity-logs", filtered.map((l) => ({
+      user: getMemberName(l.user_id),
+      action: l.action,
+      resource_type: l.resource_type || "",
+      created_at: l.created_at,
+      metadata: JSON.stringify(l.metadata),
+    })), [
+      { key: "user", label: "User" }, { key: "action", label: "Action" },
+      { key: "resource_type", label: "Resource" }, { key: "created_at", label: "Date" },
+    ]);
+    toast.success("Activity logs exported!");
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Activity Log</h1>
-        <p className="text-sm text-muted-foreground mt-1">Complete audit trail of workspace events</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Activity Log</h1>
+          <p className="text-sm text-muted-foreground mt-1">Complete audit trail of workspace events</p>
+        </div>
+        {permissions.canExportData && filtered.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1" /> Export</Button>
+        )}
       </div>
 
       <div className="flex gap-3 flex-wrap">
@@ -82,9 +100,7 @@ export default function DashboardActivityLog() {
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="All actions" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Actions</SelectItem>
-            {actionTypes.map((a) => (
-              <SelectItem key={String(a)} value={String(a)} className="capitalize">{String(a).replace(/_/g, " ")}</SelectItem>
-            ))}
+            {actionTypes.map((a) => <SelectItem key={String(a)} value={String(a)} className="capitalize">{String(a).replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -92,23 +108,18 @@ export default function DashboardActivityLog() {
       <Card>
         <CardHeader>
           <CardTitle className="font-display text-base flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Events ({filtered?.length || 0})
+            <Activity className="h-4 w-4" /> Events ({filtered.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}
-            </div>
-          ) : !filtered?.length ? (
-            <div className="text-center py-12">
-              <Activity className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-              <p className="text-sm text-muted-foreground">No activity logs found</p>
-            </div>
+            <div className="space-y-3">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
+          ) : !filtered.length ? (
+            <EmptyState icon={Activity} title="No activity logs found" description="Activity will appear here as your team uses the workspace." />
           ) : (
-            <ScrollArea className="h-[500px] pr-4">
+            <>
               <div className="space-y-1">
-                {filtered.map((log) => {
+                {pagination.items.map((log) => {
                   const config = actionConfig[log.action] || { icon: Activity, label: String(log.action).replace(/_/g, " "), color: "bg-muted text-muted-foreground" };
                   const Icon = config.icon;
                   const meta = log.metadata as any;
@@ -129,14 +140,13 @@ export default function DashboardActivityLog() {
                           {format(new Date(log.created_at), "MMM d, yyyy · h:mm a")}
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-[10px] capitalize shrink-0">
-                        {log.resource_type || "system"}
-                      </Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize shrink-0">{log.resource_type || "system"}</Badge>
                     </div>
                   );
                 })}
               </div>
-            </ScrollArea>
+              <PaginationControls {...pagination} />
+            </>
           )}
         </CardContent>
       </Card>

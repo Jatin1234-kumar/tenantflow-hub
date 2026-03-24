@@ -2,27 +2,33 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePermissions } from "@/hooks/usePermissions";
+import { usePagination } from "@/hooks/usePagination";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FolderKanban, MoreVertical, Trash2, Pencil } from "lucide-react";
+import { Plus, FolderKanban, MoreVertical, Trash2, Pencil, Download } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/EmptyState";
+import { PaginationControls } from "@/components/PaginationControls";
+import { exportToCsv } from "@/lib/exportCsv";
 
 export default function DashboardProjects() {
   const { tenant, user } = useAuth();
   const queryClient = useQueryClient();
+  const permissions = usePermissions();
   const [open, setOpen] = useState(false);
   const [editProject, setEditProject] = useState<any>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [status, setStatus] = useState("active");
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects", tenant?.id],
     queryFn: async () => {
       if (!tenant) return [];
@@ -32,6 +38,8 @@ export default function DashboardProjects() {
     },
     enabled: !!tenant,
   });
+
+  const pagination = usePagination(projects, { pageSize: 9 });
 
   const createProject = useMutation({
     mutationFn: async () => {
@@ -75,29 +83,22 @@ export default function DashboardProjects() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  const resetForm = () => {
-    setOpen(false);
-    setEditProject(null);
-    setName("");
-    setDesc("");
-    setStatus("active");
-  };
+  const resetForm = () => { setOpen(false); setEditProject(null); setName(""); setDesc(""); setStatus("active"); };
 
   const openEdit = (project: any) => {
-    setEditProject(project);
-    setName(project.name);
-    setDesc(project.description || "");
-    setStatus(project.status);
-    setOpen(true);
+    setEditProject(project); setName(project.name); setDesc(project.description || ""); setStatus(project.status); setOpen(true);
   };
 
   const statusColor = (s: string) => {
-    switch (s) {
-      case "active": return "default" as const;
-      case "completed": return "secondary" as const;
-      case "archived": return "outline" as const;
-      default: return "outline" as const;
-    }
+    switch (s) { case "active": return "default" as const; case "completed": return "secondary" as const; default: return "outline" as const; }
+  };
+
+  const handleExport = () => {
+    exportToCsv("projects", projects, [
+      { key: "name", label: "Name" }, { key: "status", label: "Status" },
+      { key: "description", label: "Description" }, { key: "created_at", label: "Created At" },
+    ]);
+    toast.success("Projects exported!");
   };
 
   return (
@@ -107,96 +108,103 @@ export default function DashboardProjects() {
           <h1 className="font-display text-2xl font-bold text-foreground">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage your workspace projects</p>
         </div>
-        <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button variant="hero" size="sm"><Plus className="h-4 w-4 mr-1" /> New Project</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-display">{editProject ? "Edit Project" : "Create Project"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); editProject ? updateProject.mutate() : createProject.mutate(); }} className="space-y-4">
-              <div>
-                <Label htmlFor="projectName">Project Name</Label>
-                <Input id="projectName" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Project" required className="mt-1.5" />
-              </div>
-              <div>
-                <Label htmlFor="projectDesc">Description (optional)</Label>
-                <Input id="projectDesc" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Brief description..." className="mt-1.5" />
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button variant="hero" className="w-full" disabled={createProject.isPending || updateProject.isPending}>
-                {editProject ? (updateProject.isPending ? "Saving..." : "Save Changes") : (createProject.isPending ? "Creating..." : "Create Project")}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          {permissions.canExportData && projects.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" /> Export
+            </Button>
+          )}
+          {permissions.canCreateProjects && (
+            <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); else setOpen(true); }}>
+              <DialogTrigger asChild>
+                <Button variant="hero" size="sm"><Plus className="h-4 w-4 mr-1" /> New Project</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="font-display">{editProject ? "Edit Project" : "Create Project"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); editProject ? updateProject.mutate() : createProject.mutate(); }} className="space-y-4">
+                  <div>
+                    <Label htmlFor="projectName">Project Name</Label>
+                    <Input id="projectName" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Project" required className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label htmlFor="projectDesc">Description (optional)</Label>
+                    <Input id="projectDesc" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Brief description..." className="mt-1.5" />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="hero" className="w-full" disabled={createProject.isPending || updateProject.isPending}>
+                    {editProject ? (updateProject.isPending ? "Saving..." : "Save Changes") : (createProject.isPending ? "Creating..." : "Create Project")}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => <Card key={i} className="animate-pulse"><CardContent className="p-6 h-32" /></Card>)}
         </div>
-      ) : projects?.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
-            <h3 className="font-display font-semibold text-foreground mb-2">No projects yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Create your first project to get started</p>
-            <Button variant="hero" size="sm" onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Create Project
-            </Button>
-          </CardContent>
-        </Card>
+      ) : projects.length === 0 ? (
+        <EmptyState
+          icon={FolderKanban}
+          title="No projects yet"
+          description="Create your first project to organize your work and start collaborating with your team."
+          actionLabel={permissions.canCreateProjects ? "Create Project" : undefined}
+          onAction={permissions.canCreateProjects ? () => setOpen(true) : undefined}
+        />
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects?.map((project) => (
-            <Card key={project.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FolderKanban className="h-5 w-5 text-primary" />
+        <>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pagination.items.map((project) => (
+              <Card key={project.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FolderKanban className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-foreground">{project.name}</h3>
+                        <Badge variant={statusColor(project.status)} className="mt-1 capitalize text-xs">{project.status}</Badge>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-foreground">{project.name}</h3>
-                      <Badge variant={statusColor(project.status)} className="mt-1 capitalize text-xs">{project.status}</Badge>
-                    </div>
+                    {permissions.canManageProjects && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(project)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                          {permissions.canDeleteProjects && (
+                            <DropdownMenuItem className="text-destructive" onClick={() => deleteProject.mutate(project.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(project)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={() => deleteProject.mutate(project.id)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {project.description && (
-                  <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-                )}
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Created {new Date(project.created_at).toLocaleDateString()}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {project.description && <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{project.description}</p>}
+                  <p className="mt-3 text-xs text-muted-foreground">Created {new Date(project.created_at).toLocaleDateString()}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <PaginationControls {...pagination} />
+        </>
       )}
     </div>
   );
