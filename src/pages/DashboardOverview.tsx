@@ -1,15 +1,27 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Users, FolderKanban, CheckSquare, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 const COLORS = ["hsl(221, 83%, 53%)", "hsl(262, 83%, 58%)", "hsl(142, 76%, 36%)", "hsl(38, 92%, 50%)", "hsl(0, 84%, 60%)"];
 
 export default function DashboardOverview() {
   const { tenant } = useAuth();
+  const permissions = usePermissions();
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem("onboarding_completed");
+  });
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem("onboarding_completed", "true");
+    setShowOnboarding(false);
+  };
 
   const { data: teamCount } = useQuery({
     queryKey: ["team-count", tenant?.id],
@@ -41,8 +53,7 @@ export default function DashboardOverview() {
       const total = data?.length || 0;
       const done = counts["done"] || 0;
       return {
-        total,
-        done,
+        total, done,
         byStatus: Object.entries(counts).map(([name, value]) => ({ name: name.replace("_", " "), value })),
       };
     },
@@ -65,22 +76,14 @@ export default function DashboardOverview() {
       if (!tenant) return [];
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-      const { data } = await supabase
-        .from("activity_logs")
-        .select("created_at")
-        .eq("tenant_id", tenant.id)
-        .gte("created_at", sevenDaysAgo.toISOString());
+      const { data } = await supabase.from("activity_logs").select("created_at").eq("tenant_id", tenant.id).gte("created_at", sevenDaysAgo.toISOString());
       const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       const counts: Record<string, number> = {};
       for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
         counts[days[d.getDay()]] = 0;
       }
-      data?.forEach((a) => {
-        const day = days[new Date(a.created_at).getDay()];
-        counts[day] = (counts[day] || 0) + 1;
-      });
+      data?.forEach((a) => { const day = days[new Date(a.created_at).getDay()]; counts[day] = (counts[day] || 0) + 1; });
       return Object.entries(counts).map(([day, activity]) => ({ day, activity }));
     },
     enabled: !!tenant,
@@ -90,12 +93,7 @@ export default function DashboardOverview() {
     queryKey: ["recent-activity", tenant?.id],
     queryFn: async () => {
       if (!tenant) return [];
-      const { data } = await supabase
-        .from("activity_logs")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
+      const { data } = await supabase.from("activity_logs").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(10);
       return data || [];
     },
     enabled: !!tenant,
@@ -110,11 +108,8 @@ export default function DashboardOverview() {
 
   const formatAction = (action: string) => {
     const map: Record<string, string> = {
-      created_project: "Created project",
-      sent_invitation: "Invited member",
-      created_task: "Created task",
-      updated_settings: "Updated settings",
-      removed_member: "Removed member",
+      created_project: "Created project", sent_invitation: "Invited member", created_task: "Created task",
+      updated_settings: "Updated settings", removed_member: "Removed member",
     };
     return map[action] || action.replace(/_/g, " ");
   };
@@ -128,6 +123,18 @@ export default function DashboardOverview() {
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   };
+
+  if (showOnboarding && projectCount === 0 && (teamCount ?? 0) <= 1) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Welcome to your workspace</p>
+        </div>
+        <OnboardingWizard onComplete={handleOnboardingComplete} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
