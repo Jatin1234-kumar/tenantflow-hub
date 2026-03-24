@@ -5,10 +5,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Settings, LogOut, User } from "lucide-react";
 
 export function UserProfileDropdown() {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const initials = profile?.full_name
+  const displayName =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+  const initials = displayName
     ?.split(" ")
     .map((n) => n[0])
     .join("")
@@ -24,7 +30,7 @@ export function UserProfileDropdown() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">
-          <p className="text-sm font-medium text-foreground">{profile?.full_name || "User"}</p>
+          <p className="text-sm font-medium text-foreground">{displayName}</p>
           <p className="text-xs text-muted-foreground truncate">Admin</p>
         </div>
         <DropdownMenuSeparator />

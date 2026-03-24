@@ -31,11 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
+
+      // PGRST116 = no rows found, which can happen for partially initialized accounts.
+      if (profileError && profileError.code !== "PGRST116") {
+        throw profileError;
+      }
 
       if (profileData) {
         setProfile(profileData);
@@ -47,6 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setRole(roleRes.data);
         setTenant(tenantRes.data);
+      } else {
+        setProfile(null);
+        setRole(null);
+        setTenant(null);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
