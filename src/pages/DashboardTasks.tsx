@@ -32,6 +32,7 @@ const priorityVariant: Record<string, "default" | "secondary" | "outline" | "des
 };
 
 export default function DashboardTasks() {
+  const UNASSIGNED = "__unassigned__";
   const { tenant, user } = useAuth();
   const queryClient = useQueryClient();
   const permissions = usePermissions();
@@ -42,7 +43,7 @@ export default function DashboardTasks() {
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedTo, setAssignedTo] = useState(UNASSIGNED);
   const [dueDate, setDueDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
@@ -82,7 +83,7 @@ export default function DashboardTasks() {
       const { error } = await supabase.from("tasks").insert({
         title, description: desc || null, status, priority,
         project_id: projectId, tenant_id: tenant.id, created_by: user.id,
-        assigned_to: assignedTo || null,
+        assigned_to: assignedTo === UNASSIGNED ? null : assignedTo,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
       });
       if (error) throw error;
@@ -96,7 +97,8 @@ export default function DashboardTasks() {
       if (!editTask) return;
       const { error } = await supabase.from("tasks").update({
         title, description: desc || null, status, priority, project_id: projectId,
-        assigned_to: assignedTo || null, due_date: dueDate ? new Date(dueDate).toISOString() : null,
+        assigned_to: assignedTo === UNASSIGNED ? null : assignedTo,
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
       }).eq("id", editTask.id);
       if (error) throw error;
     },
@@ -117,11 +119,11 @@ export default function DashboardTasks() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
-  const resetForm = () => { setOpen(false); setEditTask(null); setTitle(""); setDesc(""); setStatus("todo"); setPriority("medium"); setProjectId(""); setAssignedTo(""); setDueDate(""); };
+  const resetForm = () => { setOpen(false); setEditTask(null); setTitle(""); setDesc(""); setStatus("todo"); setPriority("medium"); setProjectId(""); setAssignedTo(UNASSIGNED); setDueDate(""); };
 
   const openEdit = (task: any) => {
     setEditTask(task); setTitle(task.title); setDesc(task.description || ""); setStatus(task.status);
-    setPriority(task.priority); setProjectId(task.project_id); setAssignedTo(task.assigned_to || "");
+    setPriority(task.priority); setProjectId(task.project_id); setAssignedTo(task.assigned_to || UNASSIGNED);
     setDueDate(task.due_date ? task.due_date.split("T")[0] : ""); setOpen(true);
   };
 
@@ -164,7 +166,7 @@ export default function DashboardTasks() {
                     <div><Label>Priority</Label><Select value={priority} onValueChange={setPriority}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem></SelectContent></Select></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Assign To</Label><Select value={assignedTo} onValueChange={setAssignedTo}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Unassigned" /></SelectTrigger><SelectContent><SelectItem value="">Unassigned</SelectItem>{members?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>)}</SelectContent></Select></div>
+                    <div><Label>Assign To</Label><Select value={assignedTo} onValueChange={setAssignedTo}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Unassigned" /></SelectTrigger><SelectContent><SelectItem value={UNASSIGNED}>Unassigned</SelectItem>{members?.map((m) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>)}</SelectContent></Select></div>
                     <div><Label>Due Date</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1.5" /></div>
                   </div>
                   <div><Label>Status</Label><Select value={status} onValueChange={setStatus}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todo">To Do</SelectItem><SelectItem value="in_progress">In Progress</SelectItem><SelectItem value="done">Done</SelectItem><SelectItem value="blocked">Blocked</SelectItem></SelectContent></Select></div>
@@ -202,7 +204,12 @@ export default function DashboardTasks() {
                 <Card key={task.id} className={`hover:shadow-sm transition-shadow ${overdue ? "border-destructive/30" : ""}`}>
                   <CardContent className="p-4 flex items-center gap-3">
                     {permissions.canEditTasks ? (
-                      <button onClick={() => quickStatus.mutate({ id: task.id, newStatus: task.status === "done" ? "todo" : "done" })} className={`shrink-0 ${sc.color} hover:opacity-70 transition-opacity`}>
+                      <button
+                        onClick={() => quickStatus.mutate({ id: task.id, newStatus: task.status === "done" ? "todo" : "done" })}
+                        className={`shrink-0 ${sc.color} hover:opacity-70 transition-opacity`}
+                        title={task.status === "done" ? "Mark as To Do" : "Mark as Done"}
+                        aria-label={task.status === "done" ? "Mark as To Do" : "Mark as Done"}
+                      >
                         <StatusIcon className="h-5 w-5" />
                       </button>
                     ) : (

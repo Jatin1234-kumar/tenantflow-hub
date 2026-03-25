@@ -43,6 +43,9 @@ export default function DashboardProjects() {
 
   const createProject = useMutation({
     mutationFn: async () => {
+      if (!permissions.canCreateProjects) {
+        throw new Error("You do not have permission to create projects");
+      }
       if (!tenant || !user) throw new Error("Not authenticated");
       const { error } = await supabase.from("projects").insert({ name, description: desc || null, tenant_id: tenant.id, created_by: user.id, status });
       if (error) throw error;

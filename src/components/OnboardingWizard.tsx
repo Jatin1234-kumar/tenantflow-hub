@@ -46,7 +46,12 @@ interface OnboardingWizardProps {
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const displayName =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "there";
   const current = steps[step];
   const Icon = current.icon;
   const progress = ((step + 1) / steps.length) * 100;
@@ -74,9 +79,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
           <Icon className="h-8 w-8 text-primary" />
         </div>
-        {step === 0 && profile && (
+        {step === 0 && (
           <p className="text-sm text-muted-foreground mb-2">
-            Hi, <span className="font-medium text-foreground">{profile.full_name}</span>! 👋
+            Hi, <span className="font-medium text-foreground">{displayName}</span>! 👋
           </p>
         )}
         <h2 className="font-display text-xl font-bold text-foreground">{current.title}</h2>

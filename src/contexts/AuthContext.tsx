@@ -31,13 +31,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const loadProfile = async () => {
+        return supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
+      };
+
+      let { data: profileData, error: profileError } = await loadProfile();
 
       // PGRST116 = no rows found, which can happen for partially initialized accounts.
+      if (profileError && profileError.code !== "PGRST116") {
+        throw profileError;
+      }
+
+      if (!profileData) {
+        await (supabase as any).rpc("bootstrap_current_user_context");
+        const retry = await loadProfile();
+        profileData = retry.data;
+        profileError = retry.error;
+      }
+
       if (profileError && profileError.code !== "PGRST116") {
         throw profileError;
       }
@@ -45,10 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileData) {
         setProfile(profileData);
 
-        const [roleRes, tenantRes] = await Promise.all([
+        let [roleRes, tenantRes] = await Promise.all([
           supabase.from("user_roles").select("*").eq("user_id", userId).eq("tenant_id", profileData.tenant_id).single(),
           supabase.from("tenants").select("*").eq("id", profileData.tenant_id).single(),
         ]);
+
+        if (!roleRes.data || !tenantRes.data) {
+          await (supabase as any).rpc("bootstrap_current_user_context");
+          [roleRes, tenantRes] = await Promise.all([
+            supabase.from("user_roles").select("*").eq("user_id", userId).eq("tenant_id", profileData.tenant_id).single(),
+            supabase.from("tenants").select("*").eq("id", profileData.tenant_id).single(),
+          ]);
+        }
 
         setRole(roleRes.data);
         setTenant(tenantRes.data);

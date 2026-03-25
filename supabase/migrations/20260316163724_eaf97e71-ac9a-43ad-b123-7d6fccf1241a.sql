@@ -52,7 +52,7 @@ CREATE TABLE public.invitations (
   role app_role NOT NULL DEFAULT 'member',
   invited_by UUID REFERENCES auth.users(id) NOT NULL,
   status invite_status NOT NULL DEFAULT 'pending',
-  token TEXT NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  token TEXT NOT NULL UNIQUE DEFAULT md5(gen_random_uuid()::text || clock_timestamp()::text),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (now() + interval '7 days'),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );

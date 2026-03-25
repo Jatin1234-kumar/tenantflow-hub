@@ -28,7 +28,7 @@ export function usePermissions() {
     canManageTeam: level >= ROLE_HIERARCHY.admin,
     canInviteMembers: level >= ROLE_HIERARCHY.manager,
     canManageProjects: level >= ROLE_HIERARCHY.manager,
-    canCreateProjects: level >= ROLE_HIERARCHY.member,
+    canCreateProjects: level >= ROLE_HIERARCHY.manager,
     canCreateTasks: level >= ROLE_HIERARCHY.member,
     canEditTasks: level >= ROLE_HIERARCHY.member,
     canDeleteProjects: level >= ROLE_HIERARCHY.admin,

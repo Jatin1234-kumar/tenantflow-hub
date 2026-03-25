@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Settings, LogOut, User } from "lucide-react";
 
 export function UserProfileDropdown() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
 
   const displayName =
@@ -31,7 +31,7 @@ export function UserProfileDropdown() {
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium text-foreground">{displayName}</p>
-          <p className="text-xs text-muted-foreground truncate">Admin</p>
+          <p className="text-xs text-muted-foreground truncate capitalize">{role?.role || "viewer"}</p>
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/dashboard/profile")} className="gap-2">

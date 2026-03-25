@@ -30,6 +30,16 @@ export default function DashboardTeam() {
   const [removeConfirm, setRemoveConfirm] = useState<{ userId: string; name: string } | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
+  const inviteRoleOptions: Enums<"app_role">[] = permissions.isSuperAdmin
+    ? ["admin", "manager", "member", "viewer"]
+    : permissions.isAdmin
+      ? ["manager", "member", "viewer"]
+      : ["member", "viewer"];
+
+  const assignableRoleOptions: Enums<"app_role">[] = permissions.isSuperAdmin
+    ? ["admin", "manager", "member", "viewer"]
+    : ["manager", "member", "viewer"];
+
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["team-members", tenant?.id],
     queryFn: async () => {
@@ -156,10 +166,9 @@ export default function DashboardTeam() {
                     <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Enums<"app_role">)}>
                       <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        {permissions.isAdmin && <SelectItem value="admin">Admin</SelectItem>}
-                        <SelectItem value="viewer">Viewer</SelectItem>
+                        {inviteRoleOptions.map((r) => (
+                          <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -235,7 +244,7 @@ export default function DashboardTeam() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {(["admin", "manager", "member", "viewer"] as Enums<"app_role">[]).map((r) => (
+                              {assignableRoleOptions.map((r) => (
                                 <DropdownMenuItem key={r} onClick={() => changeRole.mutate({ userId: member.user_id, newRole: r })} className="capitalize">{r}</DropdownMenuItem>
                               ))}
                             </DropdownMenuContent>
